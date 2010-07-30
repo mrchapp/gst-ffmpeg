@@ -805,7 +805,8 @@ gst_ffmpegdec_setcaps (GstPad * pad, GstCaps * caps)
           (oclass->in_plugin->id == CODEC_ID_VP5) ||
           (oclass->in_plugin->id == CODEC_ID_VP6) ||
           (oclass->in_plugin->id == CODEC_ID_VP6F) ||
-          (oclass->in_plugin->id == CODEC_ID_VP6A)) {
+          (oclass->in_plugin->id == CODEC_ID_VP6A) ||
+          (oclass->in_plugin->id == CODEC_ID_VP8)) {
         GST_DEBUG_OBJECT (ffmpegdec,
             "disable direct rendering setup for broken stride support");
         /* does not work, uses a incompatible stride. See #610613 */

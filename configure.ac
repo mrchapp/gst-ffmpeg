@@ -271,6 +271,7 @@ else
   dnl libgstffmpeg.la: libs to statically link to        
   FFMPEG_LIBS="\$(top_builddir)/gst-libs/ext/ffmpeg/libavformat/libavformat.a \
                \$(top_builddir)/gst-libs/ext/ffmpeg/libavcodec/libavcodec.a \
+               \$(top_builddir)/gst-libs/ext/ffmpeg/libavcore/libavcore.a \
                \$(top_builddir)/gst-libs/ext/ffmpeg/libavutil/libavutil.a"
   dnl
   POSTPROC_CFLAGS="-I \$(top_srcdir)/gst-libs/ext/ffmpeg/libpostproc	\

@@ -178,10 +178,10 @@ gst_ffmpegdeinterlace_chain (GstPad * pad, GstBuffer * inbuf)
   if (result == GST_FLOW_OK) {
     gst_ffmpeg_avpicture_fill (&deinterlace->from_frame,
         GST_BUFFER_DATA (inbuf), deinterlace->pixfmt, deinterlace->width,
-        deinterlace->height);
+        deinterlace->height, FALSE);
 
     gst_ffmpeg_avpicture_fill (&deinterlace->to_frame, GST_BUFFER_DATA (outbuf),
-        deinterlace->pixfmt, deinterlace->width, deinterlace->height);
+        deinterlace->pixfmt, deinterlace->width, deinterlace->height, FALSE);
 
     avpicture_deinterlace (&deinterlace->to_frame, &deinterlace->from_frame,
         deinterlace->pixfmt, deinterlace->width, deinterlace->height);

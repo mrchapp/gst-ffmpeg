@@ -730,7 +730,7 @@ gst_ffmpegmux_collected (GstCollectPads * pads, gpointer user_data)
       dst.linesize[0] = st->codec->width * 3;
 
       gst_ffmpeg_avpicture_fill (&src, GST_BUFFER_DATA (buf),
-          PIX_FMT_RGB24, st->codec->width, st->codec->height);
+          PIX_FMT_RGB24, st->codec->width, st->codec->height, FALSE);
 
       av_picture_copy (&dst, &src, PIX_FMT_RGB24,
           st->codec->width, st->codec->height);
@@ -818,7 +818,7 @@ gst_ffmpegmux_get_id_caps (enum CodecID *id_list)
 
   caps = gst_caps_new_empty ();
   for (i = 0; id_list[i] != CODEC_ID_NONE; i++) {
-    if ((t = gst_ffmpeg_codecid_to_caps (id_list[i], NULL, TRUE)))
+    if ((t = gst_ffmpeg_codecid_to_caps (id_list[i], NULL, FALSE, TRUE)))
       gst_caps_append (caps, t);
   }
   if (gst_caps_is_empty (caps)) {

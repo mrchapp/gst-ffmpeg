@@ -37,6 +37,7 @@
 GstCaps *
 gst_ffmpeg_codecid_to_caps   (enum CodecID    codec_id,
                               AVCodecContext *context,
+                              gboolean        use_border,
                               gboolean        encode);
 
 /*
@@ -47,6 +48,7 @@ gst_ffmpeg_codecid_to_caps   (enum CodecID    codec_id,
 GstCaps *
 gst_ffmpeg_codectype_to_caps (enum CodecType  codec_type,
                               AVCodecContext *context, 
+                              gboolean use_border,
                               enum CodecID codec_id,
                               gboolean encode);
 GstCaps *
@@ -56,6 +58,7 @@ gst_ffmpeg_codectype_to_audio_caps (AVCodecContext *context,
 				    AVCodec *codec);
 GstCaps *
 gst_ffmpeg_codectype_to_video_caps (AVCodecContext *context, 
+                              gboolean use_border,
                               enum CodecID codec_id,
 				    gboolean encode,
 				    AVCodec *codec);
@@ -109,7 +112,7 @@ gst_ffmpeg_formatid_to_caps (const gchar *format_name);
  */
 
 GstCaps *
-gst_ffmpeg_pixfmt_to_caps (enum PixelFormat pix_fmt, AVCodecContext * context, enum CodecID codec_id);
+gst_ffmpeg_pixfmt_to_caps (enum PixelFormat pix_fmt, AVCodecContext * context, gboolean use_border, enum CodecID codec_id);
 
 /*
  * _formatid_get_codecids () can be used to get the codecIDs

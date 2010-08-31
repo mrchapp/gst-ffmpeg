@@ -27,11 +27,16 @@
 #endif
 #include <gst/gst.h>
 
+
+#define EDGE_WIDTH avcodec_get_edge_width()
+
+
 /*
  *Get the size of an picture
  */
 int
-gst_ffmpeg_avpicture_get_size (int pix_fmt, int width, int height);
+gst_ffmpeg_avpicture_get_size (int pix_fmt, int width, int height,
+        gboolean use_border);
 
 /*
  * Fill in pointers in an AVPicture, aligned by 4 (required by X).
@@ -42,7 +47,8 @@ gst_ffmpeg_avpicture_fill (AVPicture * picture,
                            uint8_t *   ptr,
                            enum PixelFormat pix_fmt,
                            int         width,
-                           int         height);
+                           int         height,
+                           gboolean    use_border);
 
 /*
  * Convert from/to a GStreamer <-> FFMpeg timestamp.

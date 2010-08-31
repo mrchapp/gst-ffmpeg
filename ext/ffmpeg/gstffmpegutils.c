@@ -240,11 +240,13 @@ gst_ffmpeg_init_pix_fmt_info (void)
 };
 
 int
-gst_ffmpeg_avpicture_get_size (int pix_fmt, int width, int height)
+gst_ffmpeg_avpicture_get_size (int pix_fmt, int width, int height,
+    gboolean use_border)
 {
   AVPicture dummy_pict;
 
-  return gst_ffmpeg_avpicture_fill (&dummy_pict, NULL, pix_fmt, width, height);
+  return gst_ffmpeg_avpicture_fill (&dummy_pict, NULL, pix_fmt,
+      width, height, use_border);
 }
 
 #define GEN_MASK(x) ((1<<(x))-1)
@@ -255,12 +257,28 @@ gst_ffmpeg_avpicture_get_size (int pix_fmt, int width, int height)
 #define DIV_ROUND_UP_X(v,x) (((v) + GEN_MASK(x)) >> (x))
 
 int
-gst_ffmpeg_avpicture_fill (AVPicture * picture,
-    uint8_t * ptr, enum PixelFormat pix_fmt, int width, int height)
+gst_ffmpeg_avpicture_fill (AVPicture * picture, uint8_t * ptr,
+    enum PixelFormat pix_fmt, int width, int height, gboolean use_border)
 {
   int size, w2, h2, size2;
   int stride, stride2;
   PixFmtInfo *pinfo;
+
+  GST_DEBUG ("%dx%d", width, height);
+
+  // why not use av_fill_image_pointers()??
+
+  if (use_border) {
+    width += 2 * EDGE_WIDTH;
+    height += 2 * EDGE_WIDTH;
+
+    /* this is a bit ugly.. need to find a cleaner way to know any additional
+     * padding that is required..  but common codecs need picture to be a
+     * multiple of 16x16 macroblocks...
+     */
+    width = (width + 15) & ~0x0f;
+    height = (height + 15) & ~0x0f;
+  }
 
   pinfo = &pix_fmt_info[pix_fmt];
 
@@ -290,6 +308,14 @@ gst_ffmpeg_avpicture_fill (AVPicture * picture,
       picture->linesize[3] = 0;
       GST_DEBUG ("planes %d %d %d", 0, size, size + size2);
       GST_DEBUG ("strides %d %d %d", stride, stride2, stride2);
+      /* note: only I420 is used by decoders, so for now I suppose we are
+       * ok only handling use_border case here
+       */
+      if (use_border) {
+        picture->data[0] += (EDGE_WIDTH * width) + EDGE_WIDTH;
+        picture->data[1] += (EDGE_WIDTH / 2 * width / 2) + EDGE_WIDTH / 2;
+        picture->data[2] += (EDGE_WIDTH / 2 * width / 2) + EDGE_WIDTH / 2;
+      }
       return size + 2 * size2;
     case PIX_FMT_RGB24:
     case PIX_FMT_BGR24:

@@ -137,6 +137,7 @@ struct _GstFFMpegDec
   GValue *par;                  /* pixel aspect ratio of incoming data */
   gboolean current_dr;          /* if direct rendering is enabled */
   gboolean extra_ref;           /* keep extra ref around in get/release */
+  gboolean use_border;          /* codec requires padded buffers */
 
   /* some properties */
   gint hurry_up;
@@ -321,7 +322,7 @@ gst_ffmpegdec_base_init (GstFFMpegDecClass * klass)
   g_free (description);
 
   /* get the caps */
-  sinkcaps = gst_ffmpeg_codecid_to_caps (in_plugin->id, NULL, FALSE);
+  sinkcaps = gst_ffmpeg_codecid_to_caps (in_plugin->id, NULL, FALSE, FALSE);
   if (!sinkcaps) {
     GST_DEBUG ("Couldn't get sink caps for decoder '%s'", in_plugin->name);
     sinkcaps = gst_caps_from_string ("unknown/unknown");
@@ -805,13 +806,16 @@ gst_ffmpegdec_setcaps (GstPad * pad, GstCaps * caps)
           (oclass->in_plugin->id == CODEC_ID_VP5) ||
           (oclass->in_plugin->id == CODEC_ID_VP6) ||
           (oclass->in_plugin->id == CODEC_ID_VP6F) ||
-          (oclass->in_plugin->id == CODEC_ID_VP6A) ||
-          (oclass->in_plugin->id == CODEC_ID_VP8)) {
+          (oclass->in_plugin->id == CODEC_ID_VP6A)) {
         GST_DEBUG_OBJECT (ffmpegdec,
             "disable direct rendering setup for broken stride support");
         /* does not work, uses a incompatible stride. See #610613 */
         ffmpegdec->current_dr = FALSE;
         ffmpegdec->extra_ref = TRUE;
+      } else if (oclass->in_plugin->id == CODEC_ID_VP8) {
+        /* note: following is probably true of h264 and other vpN codecs: */
+        ffmpegdec->current_dr = TRUE;
+        ffmpegdec->use_border = TRUE;
       } else {
         GST_DEBUG_OBJECT (ffmpegdec, "enabled direct rendering");
         ffmpegdec->current_dr = TRUE;
@@ -820,9 +824,7 @@ gst_ffmpegdec_setcaps (GstPad * pad, GstCaps * caps)
       GST_DEBUG_OBJECT (ffmpegdec, "direct rendering not supported");
     }
   }
-  if (ffmpegdec->current_dr) {
-    /* do *not* draw edges when in direct rendering, for some reason it draws
-     * outside of the memory. */
+  if (ffmpegdec->current_dr && !ffmpegdec->use_border) {
     ffmpegdec->context->flags |= CODEC_FLAG_EMU_EDGE;
   }
 
@@ -910,10 +912,10 @@ alloc_output_buffer (GstFFMpegDec * ffmpegdec, GstBuffer ** outbuf,
   /* get the size of the gstreamer output buffer given a
    * width/height/format */
   fsize = gst_ffmpeg_avpicture_get_size (ffmpegdec->context->pix_fmt,
-      width, height);
+      width, height, ffmpegdec->use_border);
 
   if (!ffmpegdec->context->palctrl && ffmpegdec->can_allocate_aligned) {
-    GST_LOG_OBJECT (ffmpegdec, "calling pad_alloc");
+    GST_LOG_OBJECT (ffmpegdec, "calling pad_alloc: fsize=%d", fsize);
     /* no pallete, we can use the buffer size to alloc */
     ret = gst_pad_alloc_buffer_and_set_caps (ffmpegdec->srcpad,
         GST_BUFFER_OFFSET_NONE, fsize,
@@ -1020,9 +1022,12 @@ gst_ffmpegdec_get_buffer (AVCodecContext * context, AVFrame * picture)
           width, height, clip_width, clip_height);
 
       if (width != clip_width || height != clip_height) {
-        /* We can't alloc if we need to clip the output buffer later */
-        GST_LOG_OBJECT (ffmpegdec, "we need clipping, fallback alloc");
-        return avcodec_default_get_buffer (context, picture);
+        /* we can clip.. although we should somehow keep track of the
+         * clipped size so we can send the correct vstab event to the
+         * video sink..
+         */
+        width = clip_width;
+        height = clip_height;
       }
 
       /* alloc with aligned dimensions for ffmpeg */
@@ -1034,8 +1039,8 @@ gst_ffmpegdec_get_buffer (AVCodecContext * context, AVFrame * picture)
       }
 
       /* copy the right pointers and strides in the picture object */
-      gst_ffmpeg_avpicture_fill ((AVPicture *) picture,
-          GST_BUFFER_DATA (buf), context->pix_fmt, width, height);
+      gst_ffmpeg_avpicture_fill ((AVPicture *) picture, GST_BUFFER_DATA (buf),
+          context->pix_fmt, width, height, ffmpegdec->use_border);
       break;
     }
     case CODEC_TYPE_AUDIO:
@@ -1241,7 +1246,13 @@ gst_ffmpegdec_negotiate (GstFFMpegDec * ffmpegdec, gboolean force)
   }
 
   caps = gst_ffmpeg_codectype_to_caps (oclass->in_plugin->type,
-      ffmpegdec->context, oclass->in_plugin->id, FALSE);
+      ffmpegdec->context, ffmpegdec->use_border, oclass->in_plugin->id, FALSE);
+
+  if (ffmpegdec->use_border) {
+    gst_pad_push_event (ffmpegdec->srcpad,
+        gst_event_new_crop (EDGE_WIDTH, EDGE_WIDTH,
+            ffmpegdec->context->width, ffmpegdec->context->height));
+  }
 
   if (caps == NULL)
     goto no_caps;
@@ -1556,16 +1567,17 @@ get_output_buffer (GstFFMpegDec * ffmpegdec, GstBuffer ** outbuf)
     /* original ffmpeg code does not handle odd sizes correctly.
      * This patched up version does */
     gst_ffmpeg_avpicture_fill (&pic, GST_BUFFER_DATA (*outbuf),
-        ffmpegdec->context->pix_fmt, width, height);
+        ffmpegdec->context->pix_fmt, width, height, ffmpegdec->use_border);
 
     outpic = (AVPicture *) ffmpegdec->picture;
 
-    GST_LOG_OBJECT (ffmpegdec, "linsize %d %d %d", outpic->linesize[0],
+    GST_LOG_OBJECT (ffmpegdec, "linesize %d %d %d", outpic->linesize[0],
         outpic->linesize[1], outpic->linesize[2]);
     GST_LOG_OBJECT (ffmpegdec, "data %u %u %u", 0,
         (guint) (outpic->data[1] - outpic->data[0]),
         (guint) (outpic->data[2] - outpic->data[0]));
 
+    // XXX is this ok with original width/height? double check this
     av_picture_copy (&pic, outpic, ffmpegdec->context->pix_fmt, width, height);
   }
   ffmpegdec->picture->pts = -1;

@@ -992,7 +992,7 @@ gst_ffmpegdemux_get_stream (GstFFMpegDemux * demux, AVStream * avstream)
   }
 
   /* get caps that belongs to this stream */
-  caps = gst_ffmpeg_codecid_to_caps (ctx->codec_id, ctx, TRUE);
+  caps = gst_ffmpeg_codecid_to_caps (ctx->codec_id, ctx, FALSE, TRUE);
   if (caps == NULL)
     goto unknown_caps;
 
@@ -1396,7 +1396,7 @@ gst_ffmpegdemux_loop (GstFFMpegDemux * demux)
 
   if (rawvideo)
     outsize = gst_ffmpeg_avpicture_get_size (avstream->codec->pix_fmt,
-        avstream->codec->width, avstream->codec->height);
+        avstream->codec->width, avstream->codec->height, FALSE);
   else
     outsize = pkt.size;
 
@@ -1426,12 +1426,12 @@ gst_ffmpegdemux_loop (GstFFMpegDemux * demux)
       GST_WARNING ("Unknown demuxer %s, no idea what to do", plugin_name);
       gst_ffmpeg_avpicture_fill (&src, pkt.data,
           avstream->codec->pix_fmt, avstream->codec->width,
-          avstream->codec->height);
+          avstream->codec->height, FALSE);
     }
 
     gst_ffmpeg_avpicture_fill (&dst, GST_BUFFER_DATA (outbuf),
         avstream->codec->pix_fmt, avstream->codec->width,
-        avstream->codec->height);
+        avstream->codec->height, FALSE);
 
     av_picture_copy (&dst, &src, avstream->codec->pix_fmt,
         avstream->codec->width, avstream->codec->height);

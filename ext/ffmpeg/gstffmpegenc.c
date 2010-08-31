@@ -146,7 +146,8 @@ gst_ffmpegenc_base_init (GstFFMpegEncClass * klass)
   g_free (classification);
   g_free (description);
 
-  if (!(srccaps = gst_ffmpeg_codecid_to_caps (in_plugin->id, NULL, TRUE))) {
+  if (!(srccaps = gst_ffmpeg_codecid_to_caps (in_plugin->id,
+              NULL, FALSE, TRUE))) {
     GST_DEBUG ("Couldn't get source caps for encoder '%s'", in_plugin->name);
     srccaps = gst_caps_new_simple ("unknown/unknown", NULL);
   }
@@ -425,7 +426,8 @@ gst_ffmpegenc_getcaps (GstPad * pad)
       }
       GST_DEBUG_OBJECT (ffmpegenc,
           "Got an official pixfmt [%d], attempting to get caps", pixfmt);
-      tmpcaps = gst_ffmpeg_pixfmt_to_caps (pixfmt, NULL, oclass->in_plugin->id);
+      tmpcaps = gst_ffmpeg_pixfmt_to_caps (pixfmt,
+          NULL, FALSE, oclass->in_plugin->id);
       if (tmpcaps) {
         GST_DEBUG_OBJECT (ffmpegenc, "Got caps, breaking out");
         if (!caps)
@@ -470,7 +472,7 @@ gst_ffmpegenc_getcaps (GstPad * pad)
       if (!caps)
         caps = gst_caps_new_empty ();
       tmpcaps = gst_ffmpeg_codectype_to_caps (oclass->in_plugin->type, ctx,
-          oclass->in_plugin->id, TRUE);
+          FALSE, oclass->in_plugin->id, TRUE);
       if (tmpcaps)
         gst_caps_append (caps, tmpcaps);
       else
@@ -688,7 +690,7 @@ gst_ffmpegenc_setcaps (GstPad * pad, GstCaps * caps)
 
   /* try to set this caps on the other side */
   other_caps = gst_ffmpeg_codecid_to_caps (oclass->in_plugin->id,
-      ffmpegenc->context, TRUE);
+      ffmpegenc->context, FALSE, TRUE);
 
   if (!other_caps) {
     gst_ffmpeg_avcodec_close (ffmpegenc->context);
@@ -769,7 +771,7 @@ gst_ffmpegenc_chain_video (GstPad * pad, GstBuffer * inbuf)
   frame_size = gst_ffmpeg_avpicture_fill ((AVPicture *) ffmpegenc->picture,
       GST_BUFFER_DATA (inbuf),
       ffmpegenc->context->pix_fmt,
-      ffmpegenc->context->width, ffmpegenc->context->height);
+      ffmpegenc->context->width, ffmpegenc->context->height, FALSE);
   g_return_val_if_fail (frame_size == GST_BUFFER_SIZE (inbuf), GST_FLOW_ERROR);
 
   ffmpegenc->picture->pts =

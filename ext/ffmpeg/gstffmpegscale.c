@@ -348,11 +348,11 @@ gst_ffmpegscale_transform (GstBaseTransform * trans, GstBuffer * inbuf,
 
   gst_ffmpeg_avpicture_fill (&in_frame,
       GST_BUFFER_DATA (inbuf),
-      scale->pixfmt, scale->in_width, scale->in_height);
+      scale->pixfmt, scale->in_width, scale->in_height, FALSE);
 
   gst_ffmpeg_avpicture_fill (&out_frame,
       GST_BUFFER_DATA (outbuf),
-      scale->pixfmt, scale->out_width, scale->out_height);
+      scale->pixfmt, scale->out_width, scale->out_height, FALSE);
 
   img_resample (scale->res, &out_frame, &in_frame);
 

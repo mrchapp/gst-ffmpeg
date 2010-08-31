@@ -1,6 +1,6 @@
 [submodule "common"]
         path = common
-        url = git://github.com/robclark/ffmpeg.git
+        url = git://anongit.freedesktop.org/gstreamer/common
 [submodule "gst-libs/ext/ffmpeg"]
 	path = gst-libs/ext/ffmpeg
-	url = git://git.ffmpeg.org/ffmpeg
+	url = git://github.com/robclark/ffmpeg.git
